@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelLikes\Tests\Integration\Services;
 
+use AndyDefer\DomainStructures\Hydration\Converter\ScalarConverter;
 use AndyDefer\LaravelLikes\Enums\LikeType;
 use AndyDefer\LaravelLikes\Repositories\LikeRepository;
 use AndyDefer\LaravelLikes\Services\LikeService;
@@ -274,6 +275,7 @@ final class LikeServiceTest extends IntegrationTestCase
     public function test_get_likes_for_likeable_updated_after_returns_filtered_likes(): void
     {
         $this->likeService->like($this->user, $this->post);
+        ScalarConverter::class;
 
         $pastDate = DateTimeVO::from(now()->subDay()->toIso8601String());
 

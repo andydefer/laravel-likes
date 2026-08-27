@@ -45,7 +45,7 @@ final class LikeRepository extends AbstractRepository implements LikeRepositoryI
         }
 
         if ($filters->type !== null) {
-            $query->where('type', $filters->type->value);
+            $query->where('type', $filters->type);
         }
 
         if ($filters->updated_at !== null) {

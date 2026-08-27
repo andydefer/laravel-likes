@@ -6,7 +6,6 @@ namespace AndyDefer\LaravelLikes\Records;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\LaravelLikes\Enums\LikeType;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 
 final class LikeRecord extends AbstractRecord
@@ -17,7 +16,7 @@ final class LikeRecord extends AbstractRecord
         public readonly ?int $liker_id = null,
         public readonly ?string $likeable_type = null,
         public readonly ?int $likeable_id = null,
-        public readonly ?LikeType $type = null,
+        public readonly ?string $type = null,
         public readonly ?StrictDataObject $metadata = null,
         public readonly ?DateTimeVO $created_at = null,
         public readonly ?DateTimeVO $updated_at = null,
