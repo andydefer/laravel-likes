@@ -12,6 +12,7 @@ Un package Laravel complet pour gérer des réactions polymorphiques (likes, lov
 - [Prérequis](#prérequis)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Le cast Eloquent](#le-cast-eloquent)
 - [Extensibilité](#extensibilité)
 - [Utilisation](#utilisation)
   - [Toggle une réaction](#toggle-une-réaction)
@@ -106,11 +107,93 @@ return [
 ];
 ```
 
+### Configuration des enums dans Laravel Repository
+
+Le package utilise le `EnumCast` du package **Laravel Repository** pour la conversion automatique des enums. Vous devez configurer le cast dans `config/repository.php` :
+
+```php
+// config/repository.php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Enum Casts
+    |--------------------------------------------------------------------------
+    |
+    | Define enum casts for specific tables and columns.
+    | Each entry maps a table name and column to an enum class.
+    |
+    | The enum class must implement EnumerableInterface.
+    |
+    */
+    'enum_casts' => [
+        'likes' => [
+            'type' => AndyDefer\LaravelLikes\Enums\LikeType::class,
+        ],
+    ],
+];
+```
+
 ### Variables d'environnement
 
 ```env
 # .env
 LIKES_TYPE_ENUM=App\\Enums\\CustomLikeType
+```
+
+---
+
+## 🔧 Le cast Eloquent
+
+Le package utilise le `EnumCast` du package **Laravel Repository** pour convertir automatiquement la colonne `type` entre sa représentation en base de données et votre enum.
+
+### Comment ça fonctionne
+
+1. **Lecture (get)** : Le cast récupère la valeur string de la base de données et la convertit en instance de l'enum configuré via `tryFrom()`.
+2. **Écriture (set)** : Le cast accepte soit une instance de `LikeTypeInterface`, soit une string/int, et le convertit en valeur de base de données.
+
+### Configuration requise
+
+Pour que le cast fonctionne, vous devez :
+
+1. **Configurer le cast dans `config/repository.php`** :
+
+```php
+'enum_casts' => [
+    'likes' => [
+        'type' => AndyDefer\LaravelLikes\Enums\LikeType::class,
+    ],
+],
+```
+
+2. **Utiliser `EnumCast` dans le modèle `Like`** :
+
+```php
+use AndyDefer\Repository\Casts\EnumCast;
+
+class Like extends Model
+{
+    protected $casts = [
+        'type' => EnumCast::class,
+        'metadata' => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
+    ];
+}
+```
+
+### Interface `EnumerableInterface`
+
+Tous les enums utilisés avec le cast doivent implémenter `EnumerableInterface` du package Laravel Repository :
+
+```php
+use AndyDefer\Repository\Contracts\EnumerableInterface;
+
+enum LikeType: string implements EnumerableInterface
+{
+    // ...
+}
 ```
 
 ---
@@ -178,7 +261,18 @@ return [
 ];
 ```
 
-#### 3. Utiliser vos nouvelles réactions
+#### 3. Mettre à jour la configuration du repository
+
+```php
+// config/repository.php
+'enum_casts' => [
+    'likes' => [
+        'type' => App\Enums\CustomLikeType::class,
+    ],
+],
+```
+
+#### 4. Utiliser vos nouvelles réactions
 
 ```php
 use App\Enums\CustomLikeType;
@@ -188,36 +282,6 @@ $liked = $likeService->toggle($user, $post, CustomLikeType::FIRE);
 
 $liked = $likeService->toggle($user, $post, CustomLikeType::STAR);
 // ⭐ - Super !
-```
-
-### Le cast Eloquent
-
-Le package utilise un cast Eloquent personnalisé `LikeCast` pour convertir automatiquement la colonne `type` entre sa représentation en base de données et votre enum.
-
-```php
-// Dans le modèle Like
-protected $casts = [
-    'type' => LikeCast::class,
-    'metadata' => 'array',
-];
-```
-
-**Comment ça fonctionne :**
-
-1. **Lecture (get)** : Le cast récupère la valeur string de la base de données et la convertit en instance de l'enum configuré via `tryFrom()`.
-2. **Écriture (set)** : Le cast accepte soit une instance de `LikeTypeInterface`, soit une string/int, et le convertit en valeur de base de données.
-
-**Exemple :**
-```php
-// Lecture - automatiquement converti en enum
-$like = Like::find(1);
-$type = $like->type; // LikeType::LOVE
-
-// Écriture - accepte enum ou string
-$like->type = LikeType::HAHA; // ✅
-$like->type = 'wow'; // ✅
-$like->type = CustomLikeType::FIRE; // ✅ (si configuré)
-$like->save();
 ```
 
 ---
@@ -429,9 +493,24 @@ CREATE TABLE likes (
 
 ---
 
-## 🔍 Exemple complet
+## 🔍 Exemple complet avec configuration
 
 ```php
+// 1. Configuration du repository
+// config/repository.php
+'enum_casts' => [
+    'likes' => [
+        'type' => AndyDefer\LaravelLikes\Enums\LikeType::class,
+    ],
+],
+
+// 2. Configuration du like
+// config/likes.php
+return [
+    'like_type_enum' => AndyDefer\LaravelLikes\Enums\LikeType::class,
+];
+
+// 3. Utilisation
 use AndyDefer\LaravelLikes\Services\LikeService;
 use AndyDefer\LaravelLikes\Enums\LikeType;
 
@@ -543,7 +622,7 @@ Le package utilise `orchestra/testbench` pour les tests d'intégration avec une 
 ## 📦 Dépendances
 
 - [`andydefer/php-vo`](https://github.com/andydefer/php-vo) - Value Objects
-- [`andydefer/laravel-repository`](https://github.com/andydefer/laravel-repository) - Implémentation du pattern Repository
+- [`andydefer/laravel-repository`](https://github.com/andydefer/laravel-repository) - Implémentation du pattern Repository (contient `EnumCast`)
 - [`andydefer/domain-structures`](https://github.com/andydefer/domain-structures) - Structures de domaine (AbstractRecord, AbstractData)
 
 ---

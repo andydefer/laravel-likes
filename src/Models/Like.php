@@ -7,8 +7,8 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelLikes\Models;
 
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\LaravelLikes\Casts\LikeCast;
 use AndyDefer\LaravelLikes\Contracts\LikeTypeInterface;
+use AndyDefer\Repository\Casts\EnumCast;
 use AndyDefer\Repository\Proxies\AttributeProxy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -48,7 +48,7 @@ final class Like extends Model
     ];
 
     protected $casts = [
-        'type' => LikeCast::class,
+        'type' => EnumCast::class,
         'metadata' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

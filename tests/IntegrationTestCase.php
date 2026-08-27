@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelLikes\Tests;
 
 use AndyDefer\LaravelLikes\LikesServiceProvider;
+use AndyDefer\Repository\RepositoryServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class IntegrationTestCase extends Orchestra
@@ -24,6 +25,7 @@ abstract class IntegrationTestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
+            RepositoryServiceProvider::class,
             LikesServiceProvider::class,
         ];
     }

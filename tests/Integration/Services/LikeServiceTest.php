@@ -11,6 +11,8 @@ use AndyDefer\LaravelLikes\Tests\Fixtures\Models\TestPost;
 use AndyDefer\LaravelLikes\Tests\Fixtures\Models\TestUser;
 use AndyDefer\LaravelLikes\Tests\IntegrationTestCase;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
+use AndyDefer\Repository\Configs\RepositoryConfig;
+use AndyDefer\Repository\Contracts\Configs\RepositoryConfigInterface;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
@@ -25,6 +27,20 @@ final class LikeServiceTest extends IntegrationTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // ✅ Configurer les enum casts pour le repository
+        $this->app['config']->set('repository.enum_casts', [
+            'likes' => [
+                'type' => LikeType::class,
+            ],
+        ]);
+
+        // ✅ Rebinder RepositoryConfig
+        $this->app->singleton(RepositoryConfig::class, function ($app) {
+            return new RepositoryConfig($app['config']);
+        });
+
+        $this->app->bind(RepositoryConfigInterface::class, RepositoryConfig::class);
 
         $this->likeService = new LikeService(
             new LikeRepository
