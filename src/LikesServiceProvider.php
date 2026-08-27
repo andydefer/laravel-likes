@@ -1,11 +1,13 @@
 <?php
 
+// src/LikesServiceProvider.php
+
 declare(strict_types=1);
 
 namespace AndyDefer\LaravelLikes;
 
-use AndyDefer\LaravelLikes\Configs\LikeConfig;
-use AndyDefer\LaravelLikes\Contracts\Configs\LikeConfigInterface;
+use AndyDefer\LaravelLikes\Contracts\Repositories\LikeRepositoryInterface;
+use AndyDefer\LaravelLikes\Contracts\Services\LikeServiceInterface;
 use AndyDefer\LaravelLikes\Repositories\LikeRepository;
 use AndyDefer\LaravelLikes\Services\LikeService;
 use Illuminate\Support\ServiceProvider;
@@ -14,21 +16,20 @@ final class LikesServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Config
-        $this->mergeConfigFrom(
-            __DIR__.'/../config/likes.php',
-            'likes'
-        );
-
-        // Bindings
-        $this->app->singleton(LikeConfig::class, function ($app) {
-            return new LikeConfig($app['config']);
+        // Register concrete classes
+        $this->app->singleton(LikeRepository::class, function ($app) {
+            return new LikeRepository;
         });
 
-        $this->app->bind(LikeConfigInterface::class, LikeConfig::class);
+        $this->app->singleton(LikeService::class, function ($app) {
+            return new LikeService(
+                $app->make(LikeRepositoryInterface::class)
+            );
+        });
 
-        $this->app->singleton(LikeRepository::class);
-        $this->app->singleton(LikeService::class);
+        // Bind interfaces to concrete classes
+        $this->app->bind(LikeRepositoryInterface::class, LikeRepository::class);
+        $this->app->bind(LikeServiceInterface::class, LikeService::class);
     }
 
     public function boot(): void
@@ -42,9 +43,5 @@ final class LikesServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../database/migrations' => database_path('migrations'),
         ], 'likes-migrations');
-
-        $this->publishes([
-            __DIR__.'/../config/likes.php' => config_path('likes.php'),
-        ], 'likes-config');
     }
 }

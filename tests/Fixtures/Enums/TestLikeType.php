@@ -6,9 +6,9 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelLikes\Tests\Fixtures\Enums;
 
-use AndyDefer\LaravelLikes\Contracts\LikeTypeInterface;
+use AndyDefer\Repository\Contracts\EnumerableInterface;
 
-enum TestLikeType: string implements LikeTypeInterface
+enum TestLikeType: string implements EnumerableInterface
 {
     case FIRE = 'fire';
     case ROCKET = 'rocket';

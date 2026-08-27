@@ -1,31 +1,43 @@
 <?php
 
+// src/Services/LikeService.php
+
 declare(strict_types=1);
 
 namespace AndyDefer\LaravelLikes\Services;
 
+use AndyDefer\LaravelLikes\Contracts\Repositories\LikeRepositoryInterface;
+use AndyDefer\LaravelLikes\Contracts\Services\LikeServiceInterface;
 use AndyDefer\LaravelLikes\Enums\LikeType;
 use AndyDefer\LaravelLikes\Records\LikeFilterRecord;
 use AndyDefer\LaravelLikes\Records\LikeRecord;
-use AndyDefer\LaravelLikes\Repositories\LikeRepository;
 use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
+use AndyDefer\Repository\Contracts\EnumerableInterface;
 use AndyDefer\Repository\Records\FindByRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
-final class LikeService
+/**
+ * Service for managing likes and reactions.
+ *
+ * @implements LikeServiceInterface
+ */
+final class LikeService implements LikeServiceInterface
 {
     public function __construct(
-        private readonly LikeRepository $likeRepository,
+        private readonly LikeRepositoryInterface $likeRepository,
     ) {}
 
-    public function toggle(Model $liker, Model $likeable, LikeType $type = LikeType::LIKE): bool
+    /**
+     * {@inheritDoc}
+     */
+    public function toggle(Model $liker, Model $likeable, EnumerableInterface $type): bool
     {
         $existing = $this->findExisting($liker, $likeable);
 
         if ($existing) {
-            if ($existing->type === $type) {
+            if ($existing->type->getValue() === $type->getValue()) {
                 $this->likeRepository->delete($existing->id);
 
                 return false;
@@ -50,6 +62,9 @@ final class LikeService
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function like(Model $liker, Model $likeable): void
     {
         $existing = $this->findExisting($liker, $likeable);
@@ -74,6 +89,9 @@ final class LikeService
         $this->likeRepository->create($record);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function unlike(Model $liker, Model $likeable): void
     {
         $existing = $this->findExisting($liker, $likeable);
@@ -90,6 +108,163 @@ final class LikeService
         $this->likeRepository->delete($existing->id);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function hasLiked(Model $liker, Model $likeable): bool
+    {
+        $filter = LikeFilterRecord::from([
+            'liker_type' => $liker->getMorphClass(),
+            'liker_id' => $liker->getKey(),
+            'likeable_type' => $likeable->getMorphClass(),
+            'likeable_id' => $likeable->getKey(),
+        ]);
+
+        return $this->likeRepository->exists($filter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function countLikes(Model $likeable): int
+    {
+        $filter = LikeFilterRecord::from([
+            'likeable_type' => $likeable->getMorphClass(),
+            'likeable_id' => $likeable->getKey(),
+        ]);
+
+        return $this->likeRepository->count($filter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function countLikesByType(Model $likeable, EnumerableInterface $type): int
+    {
+        $filter = LikeFilterRecord::from([
+            'likeable_type' => $likeable->getMorphClass(),
+            'likeable_id' => $likeable->getKey(),
+            'type' => $type,
+        ]);
+
+        return $this->likeRepository->count($filter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getLikers(Model $likeable): Collection
+    {
+        $filter = LikeFilterRecord::from([
+            'likeable_type' => $likeable->getMorphClass(),
+            'likeable_id' => $likeable->getKey(),
+        ]);
+
+        $findByRecord = new FindByRecord(filters: $filter);
+
+        return $this->likeRepository->findBy($findByRecord);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getLikersByType(Model $likeable, EnumerableInterface $type): Collection
+    {
+        $filter = LikeFilterRecord::from([
+            'likeable_type' => $likeable->getMorphClass(),
+            'likeable_id' => $likeable->getKey(),
+            'type' => $type,
+        ]);
+
+        $findByRecord = new FindByRecord(filters: $filter);
+
+        return $this->likeRepository->findBy($findByRecord);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getLikerLikes(Model $liker): Collection
+    {
+        $filter = LikeFilterRecord::from([
+            'liker_type' => $liker->getMorphClass(),
+            'liker_id' => $liker->getKey(),
+        ]);
+
+        $findByRecord = new FindByRecord(filters: $filter);
+
+        return $this->likeRepository->findBy($findByRecord);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getLikerLikesByType(Model $liker, EnumerableInterface $type): Collection
+    {
+        $filter = LikeFilterRecord::from([
+            'liker_type' => $liker->getMorphClass(),
+            'liker_id' => $liker->getKey(),
+            'type' => $type,
+        ]);
+
+        $findByRecord = new FindByRecord(filters: $filter);
+
+        return $this->likeRepository->findBy($findByRecord);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getLikesUpdatedAfter(DateTimeVO $date): Collection
+    {
+        $filter = LikeFilterRecord::from([
+            'updated_at' => $date,
+        ]);
+
+        $findByRecord = new FindByRecord(filters: $filter);
+
+        return $this->likeRepository->findBy($findByRecord);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getLikerLikesUpdatedAfter(Model $liker, DateTimeVO $date): Collection
+    {
+        $filter = LikeFilterRecord::from([
+            'liker_type' => $liker->getMorphClass(),
+            'liker_id' => $liker->getKey(),
+            'updated_at' => $date,
+        ]);
+
+        $findByRecord = new FindByRecord(filters: $filter);
+
+        return $this->likeRepository->findBy($findByRecord);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getLikesForLikeableUpdatedAfter(Model $likeable, DateTimeVO $date): Collection
+    {
+        $filter = LikeFilterRecord::from([
+            'likeable_type' => $likeable->getMorphClass(),
+            'likeable_id' => $likeable->getKey(),
+            'updated_at' => $date,
+        ]);
+
+        $findByRecord = new FindByRecord(filters: $filter);
+
+        return $this->likeRepository->findBy($findByRecord);
+    }
+
+    /**
+     * Find existing like for a user and object.
+     *
+     * @param  Model  $liker  The user
+     * @param  Model  $likeable  The object
+     * @return Model|null The like model or null
+     */
     private function findExisting(Model $liker, Model $likeable): ?Model
     {
         $filter = LikeFilterRecord::from([
@@ -107,125 +282,5 @@ final class LikeService
         $collection = $this->likeRepository->findBy($findByRecord);
 
         return $collection->first();
-    }
-
-    public function hasLiked(Model $liker, Model $likeable): bool
-    {
-        $filter = LikeFilterRecord::from([
-            'liker_type' => $liker->getMorphClass(),
-            'liker_id' => $liker->getKey(),
-            'likeable_type' => $likeable->getMorphClass(),
-            'likeable_id' => $likeable->getKey(),
-        ]);
-
-        return $this->likeRepository->exists($filter);
-    }
-
-    public function countLikes(Model $likeable): int
-    {
-        $filter = LikeFilterRecord::from([
-            'likeable_type' => $likeable->getMorphClass(),
-            'likeable_id' => $likeable->getKey(),
-        ]);
-
-        return $this->likeRepository->count($filter);
-    }
-
-    public function countLikesByType(Model $likeable, LikeType $type): int
-    {
-        $filter = LikeFilterRecord::from([
-            'likeable_type' => $likeable->getMorphClass(),
-            'likeable_id' => $likeable->getKey(),
-            'type' => $type,
-        ]);
-
-        return $this->likeRepository->count($filter);
-    }
-
-    public function getLikers(Model $likeable): Collection
-    {
-        $filter = LikeFilterRecord::from([
-            'likeable_type' => $likeable->getMorphClass(),
-            'likeable_id' => $likeable->getKey(),
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filter);
-
-        return $this->likeRepository->findBy($findByRecord);
-    }
-
-    public function getLikersByType(Model $likeable, LikeType $type): Collection
-    {
-        $filter = LikeFilterRecord::from([
-            'likeable_type' => $likeable->getMorphClass(),
-            'likeable_id' => $likeable->getKey(),
-            'type' => $type,
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filter);
-
-        return $this->likeRepository->findBy($findByRecord);
-    }
-
-    public function getLikerLikes(Model $liker): Collection
-    {
-        $filter = LikeFilterRecord::from([
-            'liker_type' => $liker->getMorphClass(),
-            'liker_id' => $liker->getKey(),
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filter);
-
-        return $this->likeRepository->findBy($findByRecord);
-    }
-
-    public function getLikerLikesByType(Model $liker, LikeType $type): Collection
-    {
-        $filter = LikeFilterRecord::from([
-            'liker_type' => $liker->getMorphClass(),
-            'liker_id' => $liker->getKey(),
-            'type' => $type,
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filter);
-
-        return $this->likeRepository->findBy($findByRecord);
-    }
-
-    public function getLikesUpdatedAfter(DateTimeVO $date): Collection
-    {
-        $filter = LikeFilterRecord::from([
-            'updated_at' => $date,
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filter);
-
-        return $this->likeRepository->findBy($findByRecord);
-    }
-
-    public function getLikerLikesUpdatedAfter(Model $liker, DateTimeVO $date): Collection
-    {
-        $filter = LikeFilterRecord::from([
-            'liker_type' => $liker->getMorphClass(),
-            'liker_id' => $liker->getKey(),
-            'updated_at' => $date,
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filter);
-
-        return $this->likeRepository->findBy($findByRecord);
-    }
-
-    public function getLikesForLikeableUpdatedAfter(Model $likeable, DateTimeVO $date): Collection
-    {
-        $filter = LikeFilterRecord::from([
-            'likeable_type' => $likeable->getMorphClass(),
-            'likeable_id' => $likeable->getKey(),
-            'updated_at' => $date,
-        ]);
-
-        $findByRecord = new FindByRecord(filters: $filter);
-
-        return $this->likeRepository->findBy($findByRecord);
     }
 }

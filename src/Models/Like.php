@@ -7,8 +7,8 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelLikes\Models;
 
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\LaravelLikes\Contracts\LikeTypeInterface;
 use AndyDefer\Repository\Casts\EnumCast;
+use AndyDefer\Repository\Contracts\EnumerableInterface;
 use AndyDefer\Repository\Proxies\AttributeProxy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -29,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $deleted_at
  * @property-read Model|null $liker
  * @property-read Model|null $likeable
- * @property-read LikeTypeInterface|null $type
+ * @property-read EnumerableInterface|null $type
  * @property-read StrictDataObject|null $metadata_object
  */
 final class Like extends Model

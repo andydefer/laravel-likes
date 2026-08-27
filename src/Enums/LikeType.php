@@ -6,9 +6,9 @@ declare(strict_types=1);
 
 namespace AndyDefer\LaravelLikes\Enums;
 
-use AndyDefer\LaravelLikes\Contracts\LikeTypeInterface;
+use AndyDefer\Repository\Contracts\EnumerableInterface;
 
-enum LikeType: string implements LikeTypeInterface
+enum LikeType: string implements EnumerableInterface
 {
     case LIKE = 'like';
     case LOVE = 'love';

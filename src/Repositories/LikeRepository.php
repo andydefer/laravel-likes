@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace AndyDefer\LaravelLikes\Repositories;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractRecord;
+use AndyDefer\LaravelLikes\Contracts\Repositories\LikeRepositoryInterface;
 use AndyDefer\LaravelLikes\Models\Like;
 use AndyDefer\LaravelLikes\Records\LikeFilterRecord;
 use AndyDefer\LaravelLikes\Records\LikeRecord;
 use AndyDefer\Repository\AbstractRepository;
 use Illuminate\Database\Eloquent\Builder;
 
-final class LikeRepository extends AbstractRepository
+final class LikeRepository extends AbstractRepository implements LikeRepositoryInterface
 {
     public function __construct()
     {

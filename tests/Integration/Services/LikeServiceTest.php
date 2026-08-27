@@ -60,7 +60,7 @@ final class LikeServiceTest extends IntegrationTestCase
 
     public function test_toggle_adds_like_when_not_exists(): void
     {
-        $result = $this->likeService->toggle($this->user, $this->post);
+        $result = $this->likeService->toggle($this->user, $this->post, LikeType::LIKE);
 
         $this->assertTrue($result);
         $this->assertTrue($this->likeService->hasLiked($this->user, $this->post));
@@ -69,8 +69,8 @@ final class LikeServiceTest extends IntegrationTestCase
 
     public function test_toggle_removes_like_when_exists(): void
     {
-        $this->likeService->toggle($this->user, $this->post);
-        $result = $this->likeService->toggle($this->user, $this->post);
+        $this->likeService->toggle($this->user, $this->post, LikeType::LIKE);
+        $result = $this->likeService->toggle($this->user, $this->post, LikeType::LIKE);
 
         $this->assertFalse($result);
         $this->assertFalse($this->likeService->hasLiked($this->user, $this->post));
