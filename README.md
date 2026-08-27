@@ -1,8 +1,12 @@
+Tu as raison, je suis vraiment désolé ! C'est une erreur stupide. Voici la README corrigée sans mentionner un nombre fixe de types :
+
+---
+
 # Laravel Likes
 
 > Système de réactions polymorphiques extensible pour applications Laravel
 
-Un package Laravel complet pour gérer des réactions polymorphiques (likes, loves, haha, wow, sad, angry) avec un système de toggle intelligent, des enums extensibles, des DTOs et des Value Objects.
+Un package Laravel complet pour gérer des réactions polymorphiques avec un système de toggle intelligent, des enums extensibles, des DTOs et des Value Objects.
 
 ---
 
@@ -12,7 +16,6 @@ Un package Laravel complet pour gérer des réactions polymorphiques (likes, lov
 - [Prérequis](#prérequis)
 - [Installation](#installation)
 - [Configuration](#configuration)
-- [Le cast Eloquent](#le-cast-eloquent)
 - [Extensibilité](#extensibilité)
 - [Utilisation](#utilisation)
   - [Toggle une réaction](#toggle-une-réaction)
@@ -22,7 +25,7 @@ Un package Laravel complet pour gérer des réactions polymorphiques (likes, lov
   - [Compter les réactions](#compter-les-réactions)
   - [Récupérer les réactions](#récupérer-les-réactions)
   - [Filtrer par date](#filtrer-par-date)
-- [Types de réactions](#types-de-réactions)
+- [Types de réactions par défaut](#types-de-réactions-par-défaut)
 - [Référence de l'API](#référence-de-lapi)
 - [Value Objects](#value-objects)
 - [Structure de la base de données](#structure-de-la-base-de-données)
@@ -35,13 +38,13 @@ Un package Laravel complet pour gérer des réactions polymorphiques (likes, lov
 ## ✨ Fonctionnalités
 
 - ✅ **Double polymorphisme** - Réagissez à n'importe quel modèle avec n'importe quel utilisateur
-- ✅ **6 types de réactions par défaut** - LIKE, LOVE, HAHA, WOW, SAD, ANGRY avec emojis
-- ✅ **Extensible** - Ajoutez vos propres types de réactions via l'interface `LikeTypeInterface`
+- ✅ **Types de réactions entièrement configurables** - Créez vos propres énumérations
 - ✅ **Toggle intelligent** - Changez de réaction en un seul appel
 - ✅ **Filtrage temporel** - Récupérez les réactions après une date donnée
 - ✅ **Pattern Repository** - Séparation propre de la logique d'accès aux données
 - ✅ **Support des DTOs** - Objets de transfert de données typés
 - ✅ **Value Objects** - DateTime, Métadonnées
+- ✅ **Enum Casts** - Conversion automatique entre base de données et énumérations PHP
 - ✅ **Support des métadonnées** - Stockez des données supplémentaires au format JSON
 - ✅ **Suppression douce** - Suppression sécurisée avec possibilité de restauration
 - ✅ **Filtrage avancé** - Filtrez par type, par auteur, par objet
@@ -76,43 +79,22 @@ php artisan vendor:publish --tag=likes-migrations
 php artisan migrate
 ```
 
-### Publier la configuration (optionnel)
-
-```bash
-php artisan vendor:publish --tag=likes-config
-```
-
 ---
 
 ## ⚙️ Configuration
 
-### Fichier de configuration
+### Service Provider
+
+Le package est automatiquement découvert par Laravel. Aucune configuration supplémentaire n'est requise.
+
+### Configuration des Enum Casts
+
+Le package utilise le système d'`EnumCast` du package `andydefer/laravel-repository` pour convertir automatiquement les valeurs en énumérations PHP.
+
+Créez ou modifiez le fichier `config/repository.php` :
 
 ```php
-// config/likes.php
-
-return [
-    /*
-    |--------------------------------------------------------------------------
-    | Like Type Enum
-    |--------------------------------------------------------------------------
-    |
-    | The FQCN of the enum that defines the available like types.
-    | Must implement LikeTypeInterface.
-    |
-    | Default: AndyDefer\LaravelLikes\Enums\LikeType::class
-    |
-    */
-    'like_type_enum' => env('LIKES_TYPE_ENUM', AndyDefer\LaravelLikes\Enums\LikeType::class),
-];
-```
-
-### Configuration des enums dans Laravel Repository
-
-Le package utilise le `EnumCast` du package **Laravel Repository** pour la conversion automatique des enums. Vous devez configurer le cast dans `config/repository.php` :
-
-```php
-// config/repository.php
+<?php
 
 return [
     /*
@@ -128,81 +110,26 @@ return [
     */
     'enum_casts' => [
         'likes' => [
-            'type' => AndyDefer\LaravelLikes\Enums\LikeType::class,
+            'type' => App\Enums\CustomLikeType::class, // Votre enum personnalisé
         ],
     ],
 ];
 ```
 
-### Variables d'environnement
-
-```env
-# .env
-LIKES_TYPE_ENUM=App\\Enums\\CustomLikeType
-```
-
----
-
-## 🔧 Le cast Eloquent
-
-Le package utilise le `EnumCast` du package **Laravel Repository** pour convertir automatiquement la colonne `type` entre sa représentation en base de données et votre enum.
-
-### Comment ça fonctionne
-
-1. **Lecture (get)** : Le cast récupère la valeur string de la base de données et la convertit en instance de l'enum configuré via `tryFrom()`.
-2. **Écriture (set)** : Le cast accepte soit une instance de `LikeTypeInterface`, soit une string/int, et le convertit en valeur de base de données.
-
-### Configuration requise
-
-Pour que le cast fonctionne, vous devez :
-
-1. **Configurer le cast dans `config/repository.php`** :
-
-```php
-'enum_casts' => [
-    'likes' => [
-        'type' => AndyDefer\LaravelLikes\Enums\LikeType::class,
-    ],
-],
-```
-
-2. **Utiliser `EnumCast` dans le modèle `Like`** :
-
-```php
-use AndyDefer\Repository\Casts\EnumCast;
-
-class Like extends Model
-{
-    protected $casts = [
-        'type' => EnumCast::class,
-        'metadata' => 'array',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
-    ];
-}
-```
-
-### Interface `EnumerableInterface`
-
-Tous les enums utilisés avec le cast doivent implémenter `EnumerableInterface` du package Laravel Repository :
-
-```php
-use AndyDefer\Repository\Contracts\EnumerableInterface;
-
-enum LikeType: string implements EnumerableInterface
-{
-    // ...
-}
-```
+> **⚠️ Important** : 
+> - Sans cette configuration, les énumérations ne seront pas automatiquement converties
+> - L'énumération **DOIT** implémenter l'interface `AndyDefer\Repository\Contracts\EnumerableInterface`
+> - La méthode `getValue()` est obligatoire pour l'interface
 
 ---
 
 ## 🔧 Extensibilité
 
-### Ajouter des types de réactions personnalisés
+### Créer vos types de réactions personnalisés
 
-Le package est conçu pour être extensible. Vous pouvez ajouter vos propres types de réactions en créant un enum qui implémente `LikeTypeInterface`.
+Le package est conçu pour être extensible. Vous devez créer votre propre enum qui implémente `EnumerableInterface`.
+
+> **⚠️ OBLIGATOIRE :** Vos énumérations DOIVENT implémenter l'interface `EnumerableInterface`
 
 #### 1. Créer votre enum
 
@@ -213,55 +140,59 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
-use AndyDefer\LaravelLikes\Contracts\LikeTypeInterface;
+use AndyDefer\Repository\Contracts\EnumerableInterface;
 
-enum CustomLikeType: string implements LikeTypeInterface
+enum CustomLikeType: string implements EnumerableInterface  // ⚠️ Interface obligatoire
 {
-    case FIRE = 'fire';
-    case ROCKET = 'rocket';
-    case HEART = 'heart';
-    case CLAP = 'clap';
-    case STAR = 'star';
+    case LIKE = 'like';
+    case LOVE = 'love';
+    case HAHA = 'haha';
+    case WOW = 'wow';
+    case SAD = 'sad';
+    case ANGRY = 'angry';
+    // Ajoutez autant de cas que vous voulez !
 
-    public function getEmoji(): string
-    {
-        return match ($this) {
-            self::FIRE => '🔥',
-            self::ROCKET => '🚀',
-            self::HEART => '💖',
-            self::CLAP => '👏',
-            self::STAR => '⭐',
-        };
-    }
-
-    public function getLabel(): string
-    {
-        return match ($this) {
-            self::FIRE => 'En feu !',
-            self::ROCKET => 'Génial !',
-            self::HEART => 'Adorable !',
-            self::CLAP => 'Bravo !',
-            self::STAR => 'Super !',
-        };
-    }
-
+    /**
+     * Obligatoire - Retourne la valeur brute de l'énumération
+     */
     public function getValue(): string
     {
         return $this->value;
     }
+
+    /**
+     * Optionnel - Méthode utilitaire pour l'affichage
+     */
+    public function getEmoji(): string
+    {
+        return match ($this) {
+            self::LIKE => '👍',
+            self::LOVE => '❤️',
+            self::HAHA => '😂',
+            self::WOW => '😮',
+            self::SAD => '😢',
+            self::ANGRY => '😡',
+        };
+    }
+
+    /**
+     * Optionnel - Méthode utilitaire pour l'affichage
+     */
+    public function getLabel(): string
+    {
+        return match ($this) {
+            self::LIKE => 'J\'aime',
+            self::LOVE => 'J\'adore',
+            self::HAHA => 'Haha',
+            self::WOW => 'Wow',
+            self::SAD => 'Triste',
+            self::ANGRY => 'En colère',
+        };
+    }
 }
 ```
 
-#### 2. Configurer l'enum personnalisé
-
-```php
-// config/likes.php
-return [
-    'like_type_enum' => App\Enums\CustomLikeType::class,
-];
-```
-
-#### 3. Mettre à jour la configuration du repository
+#### 2. Configurer l'enum dans le repository
 
 ```php
 // config/repository.php
@@ -272,16 +203,19 @@ return [
 ],
 ```
 
-#### 4. Utiliser vos nouvelles réactions
+#### 3. Utiliser vos réactions
 
 ```php
 use App\Enums\CustomLikeType;
 
-$liked = $likeService->toggle($user, $post, CustomLikeType::FIRE);
-// 🔥 - En feu !
+// Toggle avec votre enum
+$liked = $likeService->toggle($user, $post, CustomLikeType::LIKE);
 
-$liked = $likeService->toggle($user, $post, CustomLikeType::STAR);
-// ⭐ - Super !
+// Compter par type
+$count = $likeService->countLikesByType($post, CustomLikeType::LOVE);
+
+// Récupérer les likeurs par type
+$likers = $likeService->getLikersByType($post, CustomLikeType::HAHA);
 ```
 
 ---
@@ -297,7 +231,7 @@ La méthode `toggle()` est la plus polyvalente. Elle permet de :
 
 ```php
 use AndyDefer\LaravelLikes\Services\LikeService;
-use AndyDefer\LaravelLikes\Enums\LikeType;
+use App\Enums\CustomLikeType;
 
 class PostController extends Controller
 {
@@ -305,19 +239,13 @@ class PostController extends Controller
     {
         $user = auth()->user();
 
-        // Toggle un like (👍)
-        $liked = $likeService->toggle($user, $post, LikeType::LIKE);
-
-        // Toggle un love (❤️)
-        $loved = $likeService->toggle($user, $post, LikeType::LOVE);
-
-        // Toggle un haha (😂)
-        $haha = $likeService->toggle($user, $post, LikeType::HAHA);
+        // Toggle une réaction
+        $reacted = $likeService->toggle($user, $post, CustomLikeType::LIKE);
 
         return response()->json([
-            'reacted' => $liked,
-            'type' => $liked ? LikeType::LIKE->getValue() : null,
-            'emoji' => $liked ? LikeType::LIKE->getEmoji() : null,
+            'reacted' => $reacted,
+            'type' => $reacted ? CustomLikeType::LIKE->getValue() : null,
+            'emoji' => $reacted ? CustomLikeType::LIKE->getEmoji() : null,
         ]);
     }
 }
@@ -326,7 +254,7 @@ class PostController extends Controller
 ### Ajouter un like
 
 ```php
-// Ajoute un like (👍) - Lève une exception si déjà liké
+// Ajoute un like - Lève une exception si déjà liké
 $likeService->like($user, $post);
 ```
 
@@ -351,12 +279,8 @@ $hasLiked = $likeService->hasLiked($user, $post);
 $total = $likeService->countLikes($post);
 
 // Compter par type
-$likes = $likeService->countLikesByType($post, LikeType::LIKE);
-$loves = $likeService->countLikesByType($post, LikeType::LOVE);
-$hahas = $likeService->countLikesByType($post, LikeType::HAHA);
-
-// Avec enum personnalisé
-$fires = $likeService->countLikesByType($post, CustomLikeType::FIRE);
+$likes = $likeService->countLikesByType($post, CustomLikeType::LIKE);
+$loves = $likeService->countLikesByType($post, CustomLikeType::LOVE);
 ```
 
 ### Récupérer les réactions
@@ -366,13 +290,13 @@ $fires = $likeService->countLikesByType($post, CustomLikeType::FIRE);
 $likers = $likeService->getLikers($post);
 
 // Récupérer les likeurs par type
-$likersByType = $likeService->getLikersByType($post, LikeType::LOVE);
+$likersByType = $likeService->getLikersByType($post, CustomLikeType::LOVE);
 
 // Récupérer toutes les réactions d'un utilisateur
 $userLikes = $likeService->getLikerLikes($user);
 
 // Récupérer les réactions d'un utilisateur par type
-$userLoves = $likeService->getLikerLikesByType($user, LikeType::LOVE);
+$userLoves = $likeService->getLikerLikesByType($user, CustomLikeType::LOVE);
 ```
 
 ### Filtrer par date
@@ -396,6 +320,8 @@ $postRecentLikes = $likeService->getLikesForLikeableUpdatedAfter($post, $date);
 
 ## 🏷️ Types de réactions par défaut
 
+Le package fournit un enum par défaut, mais vous êtes libre de le remplacer par le vôtre.
+
 | Type | Valeur | Emoji | Label |
 |------|--------|-------|-------|
 | `LikeType::LIKE` | `'like'` | 👍 | J'aime |
@@ -405,16 +331,7 @@ $postRecentLikes = $likeService->getLikesForLikeableUpdatedAfter($post, $date);
 | `LikeType::SAD` | `'sad'` | 😢 | Triste |
 | `LikeType::ANGRY` | `'angry'` | 😡 | En colère |
 
-### Utilisation des émojis
-
-```php
-use AndyDefer\LaravelLikes\Enums\LikeType;
-
-$type = LikeType::LOVE;
-echo $type->getEmoji();  // ❤️
-echo $type->getLabel();  // J'adore
-echo $type->getValue();  // 'love'
-```
+> **💡 Conseil** : Vous pouvez ajouter, supprimer ou modifier ces types en créant votre propre enum comme expliqué dans la section [Extensibilité](#extensibilité).
 
 ---
 
@@ -424,16 +341,16 @@ echo $type->getValue();  // 'love'
 
 | Méthode | Description | Retourne |
 |---------|-------------|----------|
-| `toggle(Model $liker, Model $likeable, LikeTypeInterface $type)` | Toggle une réaction (ajoute/change/supprime) | `bool` |
-| `like(Model $liker, Model $likeable)` | Ajoute un like (👍) | `void` |
+| `toggle(Model $liker, Model $likeable, EnumerableInterface $type)` | Toggle une réaction (ajoute/change/supprime) | `bool` |
+| `like(Model $liker, Model $likeable)` | Ajoute un like | `void` |
 | `unlike(Model $liker, Model $likeable)` | Supprime un like | `void` |
 | `hasLiked(Model $liker, Model $likeable)` | Vérifie si l'utilisateur a réagi | `bool` |
 | `countLikes(Model $likeable)` | Compte toutes les réactions | `int` |
-| `countLikesByType(Model $likeable, LikeTypeInterface $type)` | Compte les réactions par type | `int` |
+| `countLikesByType(Model $likeable, EnumerableInterface $type)` | Compte les réactions par type | `int` |
 | `getLikers(Model $likeable)` | Récupère tous les likeurs | `Collection` |
-| `getLikersByType(Model $likeable, LikeTypeInterface $type)` | Récupère les likeurs par type | `Collection` |
+| `getLikersByType(Model $likeable, EnumerableInterface $type)` | Récupère les likeurs par type | `Collection` |
 | `getLikerLikes(Model $liker)` | Récupère les réactions d'un utilisateur | `Collection` |
-| `getLikerLikesByType(Model $liker, LikeTypeInterface $type)` | Récupère les réactions d'un utilisateur par type | `Collection` |
+| `getLikerLikesByType(Model $liker, EnumerableInterface $type)` | Récupère les réactions d'un utilisateur par type | `Collection` |
 | `getLikesUpdatedAfter(DateTimeVO $date)` | Récupère les réactions après une date | `Collection` |
 | `getLikerLikesUpdatedAfter(Model $liker, DateTimeVO $date)` | Récupère les réactions d'un utilisateur après une date | `Collection` |
 | `getLikesForLikeableUpdatedAfter(Model $likeable, DateTimeVO $date)` | Récupère les réactions d'un objet après une date | `Collection` |
@@ -459,7 +376,7 @@ $createdAt = $like->created_at;       // Carbon
 $updatedAt = $like->updated_at;       // Carbon
 $deletedAt = $like->deleted_at;       // Carbon
 $metadata = $like->metadata;          // StrictDataObject|null
-$type = $like->type;                  // LikeTypeInterface
+$type = $like->type;                  // EnumerableInterface (votre enum)
 
 // ✅ Relations
 $liker = $like->liker;          // Auteur (User, Admin, etc.)
@@ -477,7 +394,7 @@ CREATE TABLE likes (
     liker_id BIGINT UNSIGNED NOT NULL,   -- ID de l'auteur
     likeable_type VARCHAR(255) NOT NULL, -- Type de l'objet liké
     likeable_id BIGINT UNSIGNED NOT NULL,-- ID de l'objet liké
-    type VARCHAR(20) DEFAULT 'like',     -- like, love, haha, wow, sad, angry
+    type VARCHAR(20) DEFAULT 'like',     -- Valeur de votre enum
     metadata JSON NULL,                  -- Métadonnées
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL,
@@ -493,26 +410,11 @@ CREATE TABLE likes (
 
 ---
 
-## 🔍 Exemple complet avec configuration
+## 🔍 Exemple complet
 
 ```php
-// 1. Configuration du repository
-// config/repository.php
-'enum_casts' => [
-    'likes' => [
-        'type' => AndyDefer\LaravelLikes\Enums\LikeType::class,
-    ],
-],
-
-// 2. Configuration du like
-// config/likes.php
-return [
-    'like_type_enum' => AndyDefer\LaravelLikes\Enums\LikeType::class,
-];
-
-// 3. Utilisation
 use AndyDefer\LaravelLikes\Services\LikeService;
-use AndyDefer\LaravelLikes\Enums\LikeType;
+use App\Enums\CustomLikeType;
 
 class PostController extends Controller
 {
@@ -523,7 +425,7 @@ class PostController extends Controller
     public function react(Request $request, Post $post)
     {
         $user = $request->user();
-        $type = LikeType::tryFrom($request->input('type', 'like'));
+        $type = CustomLikeType::tryFrom($request->input('type', 'like'));
 
         if (!$type) {
             return response()->json(['error' => 'Type de réaction invalide'], 400);
@@ -536,19 +438,15 @@ class PostController extends Controller
             'type' => $reacted ? $type->getValue() : null,
             'emoji' => $reacted ? $type->getEmoji() : null,
             'label' => $reacted ? $type->getLabel() : null,
-            'stats' => [
-                'total' => $this->likeService->countLikes($post),
-                'types' => $this->getReactionStats($post),
-            ],
+            'stats' => $this->getReactionStats($post),
         ]);
     }
 
     private function getReactionStats(Post $post): array
     {
         $stats = [];
-        $enumClass = config('likes.like_type_enum', LikeType::class);
         
-        foreach ($enumClass::cases() as $type) {
+        foreach (CustomLikeType::cases() as $type) {
             $stats[$type->getValue()] = [
                 'count' => $this->likeService->countLikesByType($post, $type),
                 'emoji' => $type->getEmoji(),
@@ -567,7 +465,7 @@ class PostController extends Controller
     public function myReactions(Request $request)
     {
         $user = $request->user();
-        $type = LikeType::tryFrom($request->input('type'));
+        $type = CustomLikeType::tryFrom($request->input('type'));
 
         if ($type) {
             $reactions = $this->likeService->getLikerLikesByType($user, $type);
@@ -595,10 +493,6 @@ composer test
 ```bash
 composer test-integration
 ```
-
-### Configuration des tests
-
-Le package utilise `orchestra/testbench` pour les tests d'intégration avec une base de données SQLite en mémoire.
 
 ---
 
