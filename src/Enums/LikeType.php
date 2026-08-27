@@ -1,10 +1,14 @@
 <?php
 
+// src/Enums/LikeType.php
+
 declare(strict_types=1);
 
 namespace AndyDefer\LaravelLikes\Enums;
 
-enum LikeType: string
+use AndyDefer\LaravelLikes\Contracts\LikeTypeInterface;
+
+enum LikeType: string implements LikeTypeInterface
 {
     case LIKE = 'like';
     case LOVE = 'love';
@@ -35,5 +39,10 @@ enum LikeType: string
             self::SAD => 'Triste',
             self::ANGRY => 'En colère',
         };
+    }
+
+    public function getValue(): string|int
+    {
+        return $this->value;
     }
 }

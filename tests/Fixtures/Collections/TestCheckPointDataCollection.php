@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\Mfa\Tests\Fixtures\Collections;
+namespace AndyDefer\LaravelLikes\Fixtures\Collections;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractTypedCollection;
-use AndyDefer\Mfa\Tests\Fixtures\Data\TestCheckPointData;
+use AndyDefer\LaravelLikes\Fixtures\Data\TestCheckPointData;
 
 final class TestCheckPointDataCollection extends AbstractTypedCollection
 {

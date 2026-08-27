@@ -1,15 +1,37 @@
 <?php
 
+// src/Models/Like.php
+
 declare(strict_types=1);
 
 namespace AndyDefer\LaravelLikes\Models;
 
 use AndyDefer\DomainStructures\Utils\StrictDataObject;
-use AndyDefer\LaravelLikes\Enums\LikeType;
-use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
+use AndyDefer\LaravelLikes\Casts\LikeCast;
+use AndyDefer\LaravelLikes\Contracts\LikeTypeInterface;
+use AndyDefer\Repository\Proxies\AttributeProxy;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * Like model representing user reactions.
+ *
+ * @property int $id
+ * @property string $liker_type
+ * @property int $liker_id
+ * @property string $likeable_type
+ * @property int $likeable_id
+ * @property array|null $metadata
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ * @property-read Model|null $liker
+ * @property-read Model|null $likeable
+ * @property-read LikeTypeInterface|null $type
+ * @property-read StrictDataObject|null $metadata_object
+ */
 final class Like extends Model
 {
     use SoftDeletes;
@@ -26,9 +48,14 @@ final class Like extends Model
     ];
 
     protected $casts = [
-        'type' => LikeType::class,
+        'type' => LikeCast::class,
         'metadata' => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
+
+    // ============ Relations ============
 
     public function liker()
     {
@@ -40,40 +67,13 @@ final class Like extends Model
         return $this->morphTo();
     }
 
-    public function getCreatedAt(): ?DateTimeVO
+    // ============ Attributes ============
+
+    protected function metadata(): Attribute
     {
-        $value = $this->created_at;
-
-        return $value ? new DateTimeVO($value) : null;
-    }
-
-    public function getUpdatedAt(): ?DateTimeVO
-    {
-        $value = $this->updated_at;
-
-        return $value ? new DateTimeVO($value) : null;
-    }
-
-    public function getDeletedAt(): ?DateTimeVO
-    {
-        $value = $this->deleted_at;
-
-        return $value ? new DateTimeVO($value) : null;
-    }
-
-    public function getMetadata(): ?StrictDataObject
-    {
-        $value = $this->metadata;
-
-        if ($value === null) {
-            return null;
-        }
-
-        return is_array($value) ? new StrictDataObject($value) : null;
-    }
-
-    public function getType(): LikeType
-    {
-        return $this->type;
+        return AttributeProxy::nullable(
+            StrictDataObject::class,
+            column: 'metadata',
+        );
     }
 }

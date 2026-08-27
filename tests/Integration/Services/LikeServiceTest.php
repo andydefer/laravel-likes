@@ -14,7 +14,7 @@ use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
-final class LikeServiceIntegrationTest extends IntegrationTestCase
+final class LikeServiceTest extends IntegrationTestCase
 {
     private LikeService $likeService;
 

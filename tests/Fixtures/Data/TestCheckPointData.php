@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\Mfa\Tests\Fixtures\Data;
+namespace AndyDefer\LaravelLikes\Fixtures\Data;
 
 use AndyDefer\DomainStructures\Abstracts\AbstractData;
 use AndyDefer\DomainStructures\Utils\DataObject;

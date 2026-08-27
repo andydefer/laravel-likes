@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-namespace AndyDefer\Mfa\Tests\Fixtures\Models;
+namespace AndyDefer\LaravelLikes\Fixtures\Models;
 
-use AndyDefer\Mfa\Otp\Contracts\MustOtpChannels;
-use AndyDefer\Mfa\Otp\Traits\HasOneTimePasswords;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -15,9 +13,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * This model represents a physical checkpoint (turnstile, gate, etc.)
  * that needs to authenticate with Nemesis tokens for ticket validation.
  */
-final class TestCheckPoint extends Model implements MustOtpChannels
+final class TestCheckPoint extends Model
 {
-    use HasOneTimePasswords;
     use SoftDeletes;
 
     /**

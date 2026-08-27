@@ -1,8 +1,8 @@
 # Laravel Likes
 
-> Système de réactions polymorphiques pour applications Laravel
+> Système de réactions polymorphiques extensible pour applications Laravel
 
-Un package Laravel complet pour gérer des réactions polymorphiques (likes, loves, haha, wow, sad, angry) avec le pattern Repository, des DTOs, des Value Objects et un système de toggle intelligent.
+Un package Laravel complet pour gérer des réactions polymorphiques (likes, loves, haha, wow, sad, angry) avec un système de toggle intelligent, des enums extensibles, des DTOs et des Value Objects.
 
 ---
 
@@ -12,6 +12,7 @@ Un package Laravel complet pour gérer des réactions polymorphiques (likes, lov
 - [Prérequis](#prérequis)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Extensibilité](#extensibilité)
 - [Utilisation](#utilisation)
   - [Toggle une réaction](#toggle-une-réaction)
   - [Ajouter un like](#ajouter-un-like)
@@ -33,7 +34,8 @@ Un package Laravel complet pour gérer des réactions polymorphiques (likes, lov
 ## ✨ Fonctionnalités
 
 - ✅ **Double polymorphisme** - Réagissez à n'importe quel modèle avec n'importe quel utilisateur
-- ✅ **6 types de réactions** - LIKE, LOVE, HAHA, WOW, SAD, ANGRY avec emojis
+- ✅ **6 types de réactions par défaut** - LIKE, LOVE, HAHA, WOW, SAD, ANGRY avec emojis
+- ✅ **Extensible** - Ajoutez vos propres types de réactions via l'interface `LikeTypeInterface`
 - ✅ **Toggle intelligent** - Changez de réaction en un seul appel
 - ✅ **Filtrage temporel** - Récupérez les réactions après une date donnée
 - ✅ **Pattern Repository** - Séparation propre de la logique d'accès aux données
@@ -64,7 +66,7 @@ composer require andydefer/laravel-likes
 ### Publier les migrations
 
 ```bash
-php artisan vendor:publish --tag=Likes-migrations
+php artisan vendor:publish --tag=likes-migrations
 ```
 
 ### Exécuter les migrations
@@ -73,19 +75,149 @@ php artisan vendor:publish --tag=Likes-migrations
 php artisan migrate
 ```
 
+### Publier la configuration (optionnel)
+
+```bash
+php artisan vendor:publish --tag=likes-config
+```
+
 ---
 
 ## ⚙️ Configuration
 
-Le package est automatiquement découvert par Laravel. Aucune configuration supplémentaire n'est requise.
-
-Si vous devez personnaliser le Service Provider, ajoutez-le manuellement dans `config/app.php` :
+### Fichier de configuration
 
 ```php
-'providers' => [
-    // ...
-    AndyDefer\LaravelLikes\LikesServiceProvider::class,
-],
+// config/likes.php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Like Type Enum
+    |--------------------------------------------------------------------------
+    |
+    | The FQCN of the enum that defines the available like types.
+    | Must implement LikeTypeInterface.
+    |
+    | Default: AndyDefer\LaravelLikes\Enums\LikeType::class
+    |
+    */
+    'like_type_enum' => env('LIKES_TYPE_ENUM', AndyDefer\LaravelLikes\Enums\LikeType::class),
+];
+```
+
+### Variables d'environnement
+
+```env
+# .env
+LIKES_TYPE_ENUM=App\\Enums\\CustomLikeType
+```
+
+---
+
+## 🔧 Extensibilité
+
+### Ajouter des types de réactions personnalisés
+
+Le package est conçu pour être extensible. Vous pouvez ajouter vos propres types de réactions en créant un enum qui implémente `LikeTypeInterface`.
+
+#### 1. Créer votre enum
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Enums;
+
+use AndyDefer\LaravelLikes\Contracts\LikeTypeInterface;
+
+enum CustomLikeType: string implements LikeTypeInterface
+{
+    case FIRE = 'fire';
+    case ROCKET = 'rocket';
+    case HEART = 'heart';
+    case CLAP = 'clap';
+    case STAR = 'star';
+
+    public function getEmoji(): string
+    {
+        return match ($this) {
+            self::FIRE => '🔥',
+            self::ROCKET => '🚀',
+            self::HEART => '💖',
+            self::CLAP => '👏',
+            self::STAR => '⭐',
+        };
+    }
+
+    public function getLabel(): string
+    {
+        return match ($this) {
+            self::FIRE => 'En feu !',
+            self::ROCKET => 'Génial !',
+            self::HEART => 'Adorable !',
+            self::CLAP => 'Bravo !',
+            self::STAR => 'Super !',
+        };
+    }
+
+    public function getValue(): string
+    {
+        return $this->value;
+    }
+}
+```
+
+#### 2. Configurer l'enum personnalisé
+
+```php
+// config/likes.php
+return [
+    'like_type_enum' => App\Enums\CustomLikeType::class,
+];
+```
+
+#### 3. Utiliser vos nouvelles réactions
+
+```php
+use App\Enums\CustomLikeType;
+
+$liked = $likeService->toggle($user, $post, CustomLikeType::FIRE);
+// 🔥 - En feu !
+
+$liked = $likeService->toggle($user, $post, CustomLikeType::STAR);
+// ⭐ - Super !
+```
+
+### Le cast Eloquent
+
+Le package utilise un cast Eloquent personnalisé `LikeCast` pour convertir automatiquement la colonne `type` entre sa représentation en base de données et votre enum.
+
+```php
+// Dans le modèle Like
+protected $casts = [
+    'type' => LikeCast::class,
+    'metadata' => 'array',
+];
+```
+
+**Comment ça fonctionne :**
+
+1. **Lecture (get)** : Le cast récupère la valeur string de la base de données et la convertit en instance de l'enum configuré via `tryFrom()`.
+2. **Écriture (set)** : Le cast accepte soit une instance de `LikeTypeInterface`, soit une string/int, et le convertit en valeur de base de données.
+
+**Exemple :**
+```php
+// Lecture - automatiquement converti en enum
+$like = Like::find(1);
+$type = $like->type; // LikeType::LOVE
+
+// Écriture - accepte enum ou string
+$like->type = LikeType::HAHA; // ✅
+$like->type = 'wow'; // ✅
+$like->type = CustomLikeType::FIRE; // ✅ (si configuré)
+$like->save();
 ```
 
 ---
@@ -120,7 +252,7 @@ class PostController extends Controller
 
         return response()->json([
             'reacted' => $liked,
-            'type' => $liked ? LikeType::LIKE->value : null,
+            'type' => $liked ? LikeType::LIKE->getValue() : null,
             'emoji' => $liked ? LikeType::LIKE->getEmoji() : null,
         ]);
     }
@@ -158,6 +290,9 @@ $total = $likeService->countLikes($post);
 $likes = $likeService->countLikesByType($post, LikeType::LIKE);
 $loves = $likeService->countLikesByType($post, LikeType::LOVE);
 $hahas = $likeService->countLikesByType($post, LikeType::HAHA);
+
+// Avec enum personnalisé
+$fires = $likeService->countLikesByType($post, CustomLikeType::FIRE);
 ```
 
 ### Récupérer les réactions
@@ -195,7 +330,7 @@ $postRecentLikes = $likeService->getLikesForLikeableUpdatedAfter($post, $date);
 
 ---
 
-## 🏷️ Types de réactions
+## 🏷️ Types de réactions par défaut
 
 | Type | Valeur | Emoji | Label |
 |------|--------|-------|-------|
@@ -214,6 +349,7 @@ use AndyDefer\LaravelLikes\Enums\LikeType;
 $type = LikeType::LOVE;
 echo $type->getEmoji();  // ❤️
 echo $type->getLabel();  // J'adore
+echo $type->getValue();  // 'love'
 ```
 
 ---
@@ -224,16 +360,16 @@ echo $type->getLabel();  // J'adore
 
 | Méthode | Description | Retourne |
 |---------|-------------|----------|
-| `toggle(Model $liker, Model $likeable, LikeType $type = LikeType::LIKE)` | Toggle une réaction (ajoute/change/supprime) | `bool` |
+| `toggle(Model $liker, Model $likeable, LikeTypeInterface $type)` | Toggle une réaction (ajoute/change/supprime) | `bool` |
 | `like(Model $liker, Model $likeable)` | Ajoute un like (👍) | `void` |
 | `unlike(Model $liker, Model $likeable)` | Supprime un like | `void` |
 | `hasLiked(Model $liker, Model $likeable)` | Vérifie si l'utilisateur a réagi | `bool` |
 | `countLikes(Model $likeable)` | Compte toutes les réactions | `int` |
-| `countLikesByType(Model $likeable, LikeType $type)` | Compte les réactions par type | `int` |
+| `countLikesByType(Model $likeable, LikeTypeInterface $type)` | Compte les réactions par type | `int` |
 | `getLikers(Model $likeable)` | Récupère tous les likeurs | `Collection` |
-| `getLikersByType(Model $likeable, LikeType $type)` | Récupère les likeurs par type | `Collection` |
+| `getLikersByType(Model $likeable, LikeTypeInterface $type)` | Récupère les likeurs par type | `Collection` |
 | `getLikerLikes(Model $liker)` | Récupère les réactions d'un utilisateur | `Collection` |
-| `getLikerLikesByType(Model $liker, LikeType $type)` | Récupère les réactions d'un utilisateur par type | `Collection` |
+| `getLikerLikesByType(Model $liker, LikeTypeInterface $type)` | Récupère les réactions d'un utilisateur par type | `Collection` |
 | `getLikesUpdatedAfter(DateTimeVO $date)` | Récupère les réactions après une date | `Collection` |
 | `getLikerLikesUpdatedAfter(Model $liker, DateTimeVO $date)` | Récupère les réactions d'un utilisateur après une date | `Collection` |
 | `getLikesForLikeableUpdatedAfter(Model $likeable, DateTimeVO $date)` | Récupère les réactions d'un objet après une date | `Collection` |
@@ -254,14 +390,14 @@ Le package supporte les Value Objects suivants :
 ```php
 $like = Like::find(1);
 
-// Accès sous forme de Value Objects
-$createdAt = $like->getCreatedAt();    // DateTimeVO
-$updatedAt = $like->getUpdatedAt();    // DateTimeVO
-$deletedAt = $like->getDeletedAt();    // DateTimeVO
-$metadata = $like->getMetadata();      // StrictDataObject
-$type = $like->getType();              // LikeType
+// ✅ Accès via les accesseurs Eloquent (propriétés directement)
+$createdAt = $like->created_at;       // Carbon
+$updatedAt = $like->updated_at;       // Carbon
+$deletedAt = $like->deleted_at;       // Carbon
+$metadata = $like->metadata;          // StrictDataObject|null
+$type = $like->type;                  // LikeTypeInterface
 
-// Relations
+// ✅ Relations
 $liker = $like->liker;          // Auteur (User, Admin, etc.)
 $likeable = $like->likeable;    // Objet liké (Post, Article, etc.)
 ```
@@ -318,36 +454,35 @@ class PostController extends Controller
 
         return response()->json([
             'reacted' => $reacted,
-            'type' => $reacted ? $type->value : null,
+            'type' => $reacted ? $type->getValue() : null,
             'emoji' => $reacted ? $type->getEmoji() : null,
             'label' => $reacted ? $type->getLabel() : null,
+            'stats' => [
+                'total' => $this->likeService->countLikes($post),
+                'types' => $this->getReactionStats($post),
+            ],
         ]);
     }
 
-    public function stats(Post $post)
+    private function getReactionStats(Post $post): array
     {
-        $types = LikeType::cases();
-        $reactions = [];
-
-        foreach ($types as $type) {
-            $reactions[$type->value] = [
+        $stats = [];
+        $enumClass = config('likes.like_type_enum', LikeType::class);
+        
+        foreach ($enumClass::cases() as $type) {
+            $stats[$type->getValue()] = [
                 'count' => $this->likeService->countLikesByType($post, $type),
                 'emoji' => $type->getEmoji(),
                 'label' => $type->getLabel(),
             ];
         }
-
-        return response()->json([
-            'total' => $this->likeService->countLikes($post),
-            'reactions' => $reactions,
-        ]);
+        
+        return $stats;
     }
 
-    public function likers(Post $post)
+    public function stats(Post $post)
     {
-        $likers = $this->likeService->getLikers($post);
-
-        return response()->json($likers);
+        return response()->json($this->getReactionStats($post));
     }
 
     public function myReactions(Request $request)
@@ -374,12 +509,6 @@ class PostController extends Controller
 
 ```bash
 composer test
-```
-
-### Exécuter uniquement les tests unitaires
-
-```bash
-composer test-unit
 ```
 
 ### Exécuter uniquement les tests d'intégration
@@ -411,28 +540,6 @@ Le package utilise `orchestra/testbench` pour les tests d'intégration avec une 
 
 ---
 
-## 📄 Journal des modifications
-
-Veuillez consulter le [CHANGELOG](CHANGELOG.md) pour plus d'informations sur les modifications récentes.
-
----
-
-## 🤝 Contribuer
-
-Veuillez consulter [CONTRIBUTING](CONTRIBUTING.md) pour plus de détails.
-
-### Flux de développement
-
-1. Forkez le dépôt
-2. Créez une branche de fonctionnalité (`git checkout -b feature/amazing-feature`)
-3. Apportez vos modifications
-4. Exécutez les tests (`composer test`)
-5. Committez vos modifications (`git commit -m 'Ajouter une fonctionnalité géniale'`)
-6. Poussez vers la branche (`git push origin feature/amazing-feature`)
-7. Ouvrez une Pull Request
-
----
-
 ## 📦 Dépendances
 
 - [`andydefer/php-vo`](https://github.com/andydefer/php-vo) - Value Objects
@@ -449,18 +556,15 @@ Veuillez consulter [CONTRIBUTING](CONTRIBUTING.md) pour plus de détails.
 
 ---
 
+## 📄 Licence
 
+Ce package est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus d'informations.
+
+---
 
 ## ⭐ Support
 
 Si vous trouvez ce package utile, n'hésitez pas à lui donner une ⭐ sur GitHub !
-
----
-
-## 🙏 Remerciements
-
-- Framework Laravel
-- Tous les contributeurs et utilisateurs de ce package
 
 ---
 
