@@ -11,6 +11,7 @@ use AndyDefer\Repository\Casts\EnumCast;
 use AndyDefer\Repository\Contracts\EnumerableInterface;
 use AndyDefer\Repository\Proxies\AttributeProxy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -18,11 +19,11 @@ use Illuminate\Support\Carbon;
 /**
  * Like model representing user reactions.
  *
- * @property int $id
+ * @property string $id
  * @property string $liker_type
- * @property int $liker_id
+ * @property string $liker_id
  * @property string $likeable_type
- * @property int $likeable_id
+ * @property string $likeable_id
  * @property array|null $metadata
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -34,7 +35,12 @@ use Illuminate\Support\Carbon;
  */
 final class Like extends Model
 {
+    use HasUuids;
     use SoftDeletes;
+
+    public $incrementing = false;
+
+    protected $keyType = 'string';
 
     protected $table = 'likes';
 

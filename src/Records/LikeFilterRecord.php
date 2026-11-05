@@ -1,5 +1,7 @@
 <?php
 
+// vendor/andydefer/laravel-likes/src/Records/LikeFilterRecord.php
+
 declare(strict_types=1);
 
 namespace AndyDefer\LaravelLikes\Records;
@@ -11,9 +13,9 @@ final class LikeFilterRecord extends AbstractRecord
 {
     public function __construct(
         public readonly ?string $liker_type = null,
-        public readonly ?int $liker_id = null,
+        public readonly ?string $liker_id = null,
         public readonly ?string $likeable_type = null,
-        public readonly ?int $likeable_id = null,
+        public readonly ?string $likeable_id = null,
         public readonly ?string $type = null,
         public readonly ?DateTimeVO $updated_at = null,
     ) {}
