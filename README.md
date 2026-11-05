@@ -1,7 +1,3 @@
-Tu as raison, je suis vraiment désolé ! C'est une erreur stupide. Voici la README corrigée sans mentionner un nombre fixe de types :
-
----
-
 # Laravel Likes
 
 > Système de réactions polymorphiques extensible pour applications Laravel
