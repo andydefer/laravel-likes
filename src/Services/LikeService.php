@@ -15,7 +15,9 @@ use AndyDefer\PhpVo\ValueObjects\DateTimeVO;
 use AndyDefer\Repository\Contracts\EnumerableInterface;
 use AndyDefer\Repository\Records\FindByRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
@@ -31,35 +33,47 @@ final class LikeService implements LikeServiceInterface
 
     /**
      * {@inheritDoc}
+     *
+     * Idempotent : un double appel concurrent sur la même paire
+     * (liker, likeable) ne provoque pas d'exception, l'état cible
+     * est considéré comme atteint.
      */
     public function toggle(Model $liker, Model $likeable, EnumerableInterface $type): bool
     {
-        $existing = $this->findExisting($liker, $likeable);
+        return DB::transaction(function () use ($liker, $likeable, $type): bool {
+            $existing = $this->findExisting($liker, $likeable);
 
-        if ($existing) {
-            if ($existing->type->getValue() === $type->getValue()) {
-                $this->likeRepository->delete($existing->id);
+            if ($existing) {
+                if ($existing->type->getValue() === $type->getValue()) {
+                    $this->likeRepository->delete($existing->id);
 
-                return false;
+                    return false;
+                }
+
+                $updateRecord = LikeRecord::from(['type' => $type]);
+                $this->likeRepository->update($existing->id, $updateRecord);
+
+                return true;
             }
 
-            $updateRecord = LikeRecord::from(['type' => $type]);
-            $this->likeRepository->update($existing->id, $updateRecord);
+            $record = LikeRecord::from([
+                'liker_type' => $liker->getMorphClass(),
+                'liker_id' => $liker->getKey(),
+                'likeable_type' => $likeable->getMorphClass(),
+                'likeable_id' => $likeable->getKey(),
+                'type' => $type,
+            ]);
+
+            try {
+                $this->likeRepository->create($record);
+            } catch (UniqueConstraintViolationException) {
+                // Un autre processus a inséré la même ligne entre le SELECT
+                // et l'INSERT → la ligne existe déjà, le toggle est résolu.
+                return true;
+            }
 
             return true;
-        }
-
-        $record = LikeRecord::from([
-            'liker_type' => $liker->getMorphClass(),
-            'liker_id' => $liker->getKey(),
-            'likeable_type' => $likeable->getMorphClass(),
-            'likeable_id' => $likeable->getKey(),
-            'type' => $type,
-        ]);
-
-        $this->likeRepository->create($record);
-
-        return true;
+        });
     }
 
     /**
@@ -67,26 +81,38 @@ final class LikeService implements LikeServiceInterface
      */
     public function like(Model $liker, Model $likeable): void
     {
-        $existing = $this->findExisting($liker, $likeable);
+        DB::transaction(function () use ($liker, $likeable): void {
+            $existing = $this->findExisting($liker, $likeable);
 
-        if ($existing) {
-            throw new RuntimeException(sprintf(
-                'User %s has already liked %s %s',
-                $liker->getKey(),
-                $likeable->getMorphClass(),
-                $likeable->getKey()
-            ));
-        }
+            if ($existing) {
+                throw new RuntimeException(sprintf(
+                    'User %s has already liked %s %s',
+                    $liker->getKey(),
+                    $likeable->getMorphClass(),
+                    $likeable->getKey()
+                ));
+            }
 
-        $record = LikeRecord::from([
-            'liker_type' => $liker->getMorphClass(),
-            'liker_id' => $liker->getKey(),
-            'likeable_type' => $likeable->getMorphClass(),
-            'likeable_id' => $likeable->getKey(),
-            'type' => LikeType::LIKE,
-        ]);
+            $record = LikeRecord::from([
+                'liker_type' => $liker->getMorphClass(),
+                'liker_id' => $liker->getKey(),
+                'likeable_type' => $likeable->getMorphClass(),
+                'likeable_id' => $likeable->getKey(),
+                'type' => LikeType::LIKE,
+            ]);
 
-        $this->likeRepository->create($record);
+            try {
+                $this->likeRepository->create($record);
+            } catch (UniqueConstraintViolationException) {
+                // Course concurrente : on relance l'exception métier explicite.
+                throw new RuntimeException(sprintf(
+                    'User %s has already liked %s %s',
+                    $liker->getKey(),
+                    $likeable->getMorphClass(),
+                    $likeable->getKey()
+                ));
+            }
+        });
     }
 
     /**
@@ -94,18 +120,20 @@ final class LikeService implements LikeServiceInterface
      */
     public function unlike(Model $liker, Model $likeable): void
     {
-        $existing = $this->findExisting($liker, $likeable);
+        DB::transaction(function () use ($liker, $likeable): void {
+            $existing = $this->findExisting($liker, $likeable);
 
-        if (! $existing) {
-            throw new RuntimeException(sprintf(
-                'User %s has not liked %s %s',
-                $liker->getKey(),
-                $likeable->getMorphClass(),
-                $likeable->getKey()
-            ));
-        }
+            if (! $existing) {
+                throw new RuntimeException(sprintf(
+                    'User %s has not liked %s %s',
+                    $liker->getKey(),
+                    $likeable->getMorphClass(),
+                    $likeable->getKey()
+                ));
+            }
 
-        $this->likeRepository->delete($existing->id);
+            $this->likeRepository->delete($existing->id);
+        });
     }
 
     /**
